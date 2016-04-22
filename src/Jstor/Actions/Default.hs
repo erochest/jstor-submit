@@ -6,8 +6,8 @@ module Jstor.Actions.Default where
 
 import           Control.Error
 
--- import           Jstor.Types
+import           Jstor.Types
 
 
-defaultAction :: FilePath -> FilePath -> Script ()
-defaultAction _input _output = undefined
+defaultAction :: FilePath -> [SearchTerm] -> Script ()
+defaultAction _input _terms = undefined

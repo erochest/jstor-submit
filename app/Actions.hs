@@ -15,4 +15,4 @@ import           Types
 
 action :: Actions -> Script ()
 
-action Default{..} = defaultAction defaultInput defaultOutput
+action Default{..} = defaultAction defaultOutput defaultTerms

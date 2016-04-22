@@ -1,11 +1,11 @@
 module Types where
 
 
--- import           Jstor.Types
+import           Jstor.Types
 
 
 data Actions
         = Default { defaultOutput :: !FilePath
-                  , defaultInput  :: !FilePath
+                  , defaultTerms  :: ![SearchTerm]
                   }
         deriving (Show, Eq)

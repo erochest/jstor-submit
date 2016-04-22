@@ -9,33 +9,25 @@ module Opts
     ) where
 
 
--- import           Control.Monad       (mzero)
--- import qualified Data.List           as L
--- import qualified Data.Text           as T
+import qualified Data.Text           as T
 import           Options.Applicative
 
--- import           Jstor.Types
+import           Jstor.Types
 
 import           Types
 
-
--- textOption :: Mod OptionFields T.Text -> Parser T.Text
--- textOption = option (T.pack <$> str)
 
 outputOpt :: Parser FilePath
 outputOpt = strOption (  short 'o' <> long "output" <> metavar "OUTPUT_FILE"
                       <> help "The file to write back to.")
 
-inputOpt :: Parser FilePath
-inputOpt = strOption (  short 'i' <> long "input" <> metavar "INPUT_FILE"
-                     <> help "The input file to process.")
-
--- inputsOpt :: Parser [FilePath]
--- inputsOpt = many (strArgument (  metavar "INPUT_FILES ..."
-                              -- <> help "Input data files."))
+searchTermsOpts :: Parser [SearchTerm]
+searchTermsOpts =
+    some (argument (T.pack <$> str)
+                   (  metavar "SEARCH_TERM" <> help "A term to search for."))
 
 defaultOpts :: Parser Actions
-defaultOpts = Default <$> outputOpt <*> inputOpt
+defaultOpts = Default <$> outputOpt <*> searchTermsOpts
 
 opts' :: Parser Actions
 opts' = subparser

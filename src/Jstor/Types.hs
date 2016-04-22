@@ -15,5 +15,8 @@ module Jstor.Types where
 
 -- import           Control.Lens
 -- import           Data.Data
--- import qualified Data.Text              as T
+import qualified Data.Text              as T
 -- import           GHC.Generics           hiding (to)
+
+
+type SearchTerm = T.Text
