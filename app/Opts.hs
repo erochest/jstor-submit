@@ -26,12 +26,12 @@ searchTermsOpts =
     some (argument (T.pack <$> str)
                    (  metavar "SEARCH_TERM" <> help "A term to search for."))
 
-defaultOpts :: Parser Actions
-defaultOpts = Default <$> outputOpt <*> searchTermsOpts
+searchOpts :: Parser Actions
+searchOpts = Search <$> outputOpt <*> searchTermsOpts
 
 opts' :: Parser Actions
 opts' = subparser
-      (  command "default" (info (helper <*> defaultOpts)
+      (  command "search" (info (helper <*> searchOpts)
                           (progDesc "Default action and options."))
       )
 

@@ -5,7 +5,8 @@ import           Jstor.Types
 
 
 data Actions
-        = Default { defaultOutput :: !FilePath
-                  , defaultTerms  :: ![SearchTerm]
-                  }
+        = Search
+        { searchOutput :: !FilePath
+        , searchTerms  :: ![SearchTerm]
+        }
         deriving (Show, Eq)

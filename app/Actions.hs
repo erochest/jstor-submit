@@ -8,11 +8,11 @@ module Actions where
 
 import           Control.Error
 
-import           Jstor.Actions.Default
+import           Jstor.Actions.Search
 
 import           Types
 
 
 action :: Actions -> Script ()
 
-action Default{..} = defaultAction defaultOutput defaultTerms
+action Search{..} = searchAction searchOutput searchTerms
