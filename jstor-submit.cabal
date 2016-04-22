@@ -19,9 +19,14 @@ library
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9
                      , errors
+                     , html-conduit
                      , lens
                      , text
                      , text-format
+                     , wreq
+                     , xml-conduit
+                     , xml-lens
+                     , xml-types
   hs-source-dirs:      src
   default-language:    Haskell2010
 
