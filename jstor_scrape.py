@@ -9,6 +9,7 @@ import argparse
 import os
 from pprint import pprint, pformat
 import re
+import shutil
 import sys
 import urllib.parse
 
@@ -19,17 +20,17 @@ import requests
 HOME = 'http://dfr.jstor.org/'
 DISCIPLINES = [
     'Sociology',
-    'Political Science ',
+    'Political Science',
     'Economics',
     'Anthropology',
     'History',
-    'Public Policy and Administration ',
+    'Public Policy & Administration',
     'General Science',
-    'Biological Sciences ',
+    'Biological Sciences',
     'Business',
     'Mathematics',
     'Statistics',
-    'Language and Literature ',
+    'Language & Literature',
     'Philosophy',
 ]
 
@@ -80,7 +81,7 @@ class Page:
         self._soup = BeautifulSoup(resp.text, 'html.parser')
         return self._soup
 
-    def find_links(self, target):
+    def find_links(self, target, lazy=True):
         """\
         Finds the links with text equalling `target` and returns the Page.
 
@@ -88,18 +89,28 @@ class Page:
         for a in self.soup.find_all('a'):
             content = ' '.join(a.stripped_strings)
             if target == content:
-                yield Page(
+                page = Page(
                     urllib.parse.urljoin(self.url, a['href']),
                     tag=a,
                     verbose=self.verbose,
                 )
+                if not lazy:
+                    page.get()
+                yield page
 
-    def find_link(self, target):
+    def find_link(self, target, lazy=True, top=False):
         """\
         Finds a link with text equalling `target` and returns the Page or None.
 
         """
-        return next(self.find_links(target), None)
+        next_page = next(self.find_links(target, lazy=lazy), None)
+        if self.verbose and top:
+            filename = os.path.join(
+                'dump',
+                clean_filename(target) + '.csv',
+            )
+            next_page.export_csv(target, filename)
+        return next_page
 
     def find_options(self, section_title):
         """\
@@ -133,13 +144,25 @@ class Page:
 
         return range(start, end + 1)
 
-    def submit_term(self, term):
+    def submit_term(self, term, lazy=True):
         """\
         This acts like setting the term on the page and returns the new Page.
         """
         qv0 = self.soup.find('input', {'name': 'qv0'})
         form = qv0.find_parent('form')
-        params = {'qv0': term}
+
+        select = self.soup.find('select', {'name': 'qf0'})
+        for option in select.find_all('option'):
+            if 'selected' in option.attrs:
+                search_range = option['value']
+                break
+        else:
+            search_range = 'text'
+
+        params = {
+            'qv0': term,
+            'qf0': search_range,
+            }
 
         for hidden in form.find_all('input', {'type': 'hidden'}):
             params[hidden['name']] = hidden['value']
@@ -150,6 +173,8 @@ class Page:
             params=params,
             verbose=self.verbose,
         )
+        if not lazy:
+            page.get()
         return page
 
     def find_export_link(self, section_title, data_format='csv'):
@@ -163,10 +188,27 @@ class Page:
                      .find('a', string=data_format))
         return urllib.parse.urljoin(self.url, data_link['href'])
 
+    def export_csv(self, label, output_file):
+        """This outputs the CSV data for a label."""
+        url = self.find_export_link(label)
+        print('download <{}>'.format(url))
+        response = requests.get(url)
+        assert response.status_code == 200
+        print('writing {}'.format(output_file))
+        with open(output_file, 'w') as fout:
+            fout.write(response.text)
+
 
 def clean_filename(text):
     """This replaces all non-alphanumeric letters with an underscore."""
     return re.sub(r'\W+', '_', text).lower()
+
+
+def reset(dirname):
+    """Remove and re-create the directory, if it exists."""
+    if os.path.exists(dirname):
+        shutil.rmtree(dirname)
+    os.makedirs(dirname)
 
 
 def parse_args(argv=None):
@@ -177,8 +219,13 @@ def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('-v', '--verbose', dest='verbose',
                         action='store_true', help='ALL THE OUTPUT!')
-    parser.add_argument('terms', metavar='SEARCH_TERM', nargs='+',
-                        help='Terms to search for.')
+    parser.add_argument('-r', '--reset', dest='reset', action='store_true',
+                        help='Reset the output director{y|ies}.')
+    parser.add_argument('-o', '--output', dest='output', metavar='OUTPUT_DIR',
+                        action='store',
+                        help='The directory to store the output in.')
+    parser.add_argument('term_files', metavar='TERM_FILE', nargs='+',
+                        help='File(s) listing terms to search for.')
 
     return parser.parse_args(argv)
 
@@ -187,42 +234,50 @@ def main():
     """main"""
     args = parse_args()
 
+    if args.reset:
+        reset(args.output)
+        if args.verbose:
+            reset('dump')
+
     print('open language')
     root = Page(HOME, verbose=args.verbose)
-    lang = root.find_link('Language')
+    lang = root.find_link('Language', lazy=False, top=True)
     print('select english')
-    eng = lang.find_link('English')
+    eng = lang.find_link('English', lazy=False)
 
     print('open discipline')
-    disc = eng.find_link('Discipline')
+    disc = eng.find_link('Discipline', lazy=False, top=True)
     disciplines = disc.find_options('Discipline')
     if args.verbose:
         print('DISCIPLINE LINKS')
         pprint(disciplines)
 
-    for (disc_name, disc_page) in disciplines.items():
+    terms = set()
+    for term_file in args.term_files:
+        with open(term_file) as tfin:
+            terms |= set(line.strip() for line in tfin)
+    terms = sorted(terms)
+
+    for disc_name in DISCIPLINES:
+        disc_page = disciplines[disc_name]
         disc_clean = clean_filename(disc_name)
 
-        print('select discipline "{}"'.format(disc_name))
-        disc_selected = disc_page.find_link(disc_name)
+        years_open = disc_page.find_link('Year of Publication', lazy=False,
+                                         top=True)
 
-        print('open year of publication')
-        years_open = disc_selected.find_link('Year of Publication')
-
-        for term in args.terms:
+        for term in terms:
             term_clean = clean_filename(term)
 
             print('search for term "{}"'.format(term))
             term_page = years_open.submit_term(term)
-            url = term_page.find_export_link('Year of Publication')
-
-            print('download')
-            response = requests.get(url)
-            assert response.status_code == 200
-            filename = '%s-%s.csv' % (disc_clean, term_clean)
-            print('writing {}'.format(filename))
-            with open(filename, 'w') as fout:
-                fout.write(response.text)
+            filename = os.path.join(
+                args.output, '%s-%s.csv' % (disc_clean, term_clean),
+                )
+            print(
+                'select discipline "{}" and open year of '
+                'publication'.format(disc_name)
+                )
+            term_page.export_csv('Year of Publication', filename)
 
 
 if __name__ == '__main__':
