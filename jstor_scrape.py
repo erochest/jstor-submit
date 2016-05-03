@@ -254,7 +254,7 @@ def main():
 
     terms = set()
     for term_file in args.term_files:
-        with open(term_file) as tfin:
+        with open(term_file, encoding='utf8') as tfin:
             terms |= set(line.strip() for line in tfin)
     terms = sorted(terms)
 
@@ -268,7 +268,7 @@ def main():
         for term in terms:
             term_clean = clean_filename(term)
 
-            print('search for term "{}"'.format(term))
+            print('search for term "{}"'.format(term).encode('utf8'))
             term_page = years_open.submit_term(term)
             filename = os.path.join(
                 args.output, '%s-%s.csv' % (disc_clean, term_clean),
